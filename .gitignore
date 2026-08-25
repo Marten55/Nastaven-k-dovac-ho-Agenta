@@ -1,0 +1,21 @@
+.env
+.env.local
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Lokalne prepisy nastaveni (kazdy vyvojar ma svoje)
+.claude/settings.local.json
+
+# Vystupy auditov a reportov s realnymi klientskymi datami
+docs/demo/*-live.md
+exports/

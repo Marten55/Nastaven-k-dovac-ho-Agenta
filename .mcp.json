@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "woo": {
+      "command": "uv",
+      "args": ["--directory", "./mcp-servers/woo-mcp", "run", "woo-mcp"],
+      "env": {
+        "WOO_BASE_URL": "${WOO_BASE_URL:-}",
+        "WOO_CONSUMER_KEY": "${WOO_CONSUMER_KEY:-}",
+        "WOO_CONSUMER_SECRET": "${WOO_CONSUMER_SECRET:-}",
+        "WOO_MODE": "${WOO_MODE:-fixtures}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--isolated"]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read(./**)",
+      "Grep",
+      "Glob",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "mcp__woo__get_product",
+      "mcp__woo__search_products",
+      "mcp__woo__list_orders",
+      "mcp__woo__check_stock",
+      "mcp__woo__audit_seo",
+      "mcp__woo__server_status"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(rm -rf:*)",
+      "Bash(curl:* -u *)",
+      "WebFetch(domain:*.admtechnics.sk)"
+    ],
+    "ask": [
+      "mcp__woo__update_product",
+      "mcp__woo__set_alt_text"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_wp_core.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/session_context.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

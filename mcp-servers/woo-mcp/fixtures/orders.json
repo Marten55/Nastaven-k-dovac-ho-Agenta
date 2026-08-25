@@ -1,0 +1,39 @@
+[
+  {
+    "id": 5231,
+    "status": "processing",
+    "total": "213.50",
+    "currency": "EUR",
+    "date_created": "2026-08-24T09:14:22",
+    "line_items": [
+      {"product_id": 101, "quantity": 1, "total": "189.00"},
+      {"product_id": 102, "quantity": 1, "total": "24.50"}
+    ]
+  },
+  {
+    "id": 5232,
+    "status": "completed",
+    "total": "59.00",
+    "currency": "EUR",
+    "date_created": "2026-08-23T17:41:05",
+    "line_items": [{"product_id": 104, "quantity": 1, "total": "59.00"}]
+  },
+  {
+    "id": 5233,
+    "status": "on-hold",
+    "total": "349.00",
+    "currency": "EUR",
+    "date_created": "2026-08-23T11:02:47",
+    "line_items": [{"product_id": 106, "quantity": 1, "total": "349.00"}]
+  },
+  {
+    "id": 5234,
+    "status": "processing",
+    "total": "35.60",
+    "currency": "EUR",
+    "date_created": "2026-08-22T20:33:10",
+    "line_items": [
+      {"product_id": 105, "quantity": 4, "total": "35.60"}
+    ]
+  }
+]

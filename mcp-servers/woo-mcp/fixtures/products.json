@@ -1,0 +1,94 @@
+[
+  {
+    "id": 101,
+    "sku": "XB47-0012",
+    "name": "Šasi rám ATV 125 ccm",
+    "price": "189.00",
+    "stock_status": "instock",
+    "stock_quantity": 4,
+    "backorders": "no",
+    "categories": [{"id": 12, "name": "Štvorkolky"}, {"id": 19, "name": "Rámy a šasi"}],
+    "short_description": "Oceľový rám pre štvorkolku 125 ccm, práškovaná farba.",
+    "description": "Náhradný oceľový rám pre modely XB47 a XB48. Kompatibilný s originálnym uchytením motora aj tlmičov.",
+    "images": [
+      {"id": 9101, "src": "https://example-shop.sk/wp-content/uploads/xb47-ram-1.jpg", "alt": ""},
+      {"id": 9102, "src": "https://example-shop.sk/wp-content/uploads/xb47-ram-2.jpg", "alt": ""}
+    ]
+  },
+  {
+    "id": 102,
+    "sku": "XB48-0031",
+    "name": "Brzdové doštičky predné XB48",
+    "price": "24.50",
+    "stock_status": "instock",
+    "stock_quantity": 27,
+    "backorders": "no",
+    "categories": [{"id": 12, "name": "Štvorkolky"}, {"id": 22, "name": "Brzdy"}],
+    "short_description": "Sada predných brzdových doštičiek pre XB48, semi-metalická zmes.",
+    "description": "Sada obsahuje dve doštičky vrátane montážnych pružiniek.",
+    "images": [
+      {"id": 9201, "src": "https://example-shop.sk/wp-content/uploads/xb48-brzdy.jpg", "alt": "Predné brzdové doštičky pre štvorkolku XB48"}
+    ]
+  },
+  {
+    "id": 103,
+    "sku": "FLT-2200",
+    "name": "Vzduchový filter penový univerzálny pre štvorkolky a motocykle s objemom motora 110 až 250 ccm vrátane redukcie",
+    "price": "11.90",
+    "stock_status": "onbackorder",
+    "stock_quantity": 0,
+    "backorders": "notify",
+    "categories": [{"id": 30, "name": "Filtre"}],
+    "short_description": "",
+    "description": "Penový vzduchový filter s redukciou 35/42 mm.",
+    "images": [
+      {"id": 9301, "src": "https://example-shop.sk/wp-content/uploads/filter-penovy.jpg", "alt": "Penový vzduchový filter"}
+    ]
+  },
+  {
+    "id": 104,
+    "sku": "HELM-0104",
+    "name": "Prilba crossová detská",
+    "price": "59.00",
+    "stock_status": "instock",
+    "stock_quantity": 8,
+    "backorders": "no",
+    "categories": [{"id": 41, "name": "Oblečenie a prilby"}],
+    "short_description": "Detská crossová prilba veľkosti S s certifikáciou ECE 22.06.",
+    "description": "Ľahká škrupina, odnímateľná vnútorná výstelka.",
+    "images": [
+      {"id": 9401, "src": "https://example-shop.sk/wp-content/uploads/prilba-detska-1.jpg", "alt": ""},
+      {"id": 9402, "src": "https://example-shop.sk/wp-content/uploads/prilba-detska-2.jpg", "alt": "Detská crossová prilba, bočný pohľad"}
+    ]
+  },
+  {
+    "id": 105,
+    "sku": "OLEJ",
+    "name": "Motorový olej 10W-40 polosyntetický 1 l",
+    "price": "8.90",
+    "stock_status": "instock",
+    "stock_quantity": 63,
+    "backorders": "no",
+    "categories": [{"id": 55, "name": "Prevádzkové kvapaliny"}],
+    "short_description": "Polosyntetický motorový olej 10W-40, balenie 1 liter.",
+    "description": "Vhodný pre štvortaktné motory štvorkoliek a malých motocyklov.",
+    "images": [
+      {"id": 9501, "src": "https://example-shop.sk/wp-content/uploads/olej-10w40.jpg", "alt": "Motorový olej 10W-40, balenie 1 liter"}
+    ]
+  },
+  {
+    "id": 106,
+    "sku": "MOT-9900",
+    "name": "Motor kompletný 125 ccm 4T",
+    "price": "349.00",
+    "stock_status": "instock",
+    "stock_quantity": 2,
+    "backorders": "no",
+    "categories": [{"id": 12, "name": "Štvorkolky"}, {"id": 60, "name": "Motory"}],
+    "short_description": "Kompletný štvortaktný motor 125 ccm vrátane karburátora.",
+    "description": "Manuálna prevodovka 4+1, elektrický aj kickový štart.",
+    "images": [
+      {"id": 9601, "src": "https://example-shop.sk/wp-content/uploads/motor-125.jpg", "alt": "Kompletný motor 125 ccm pre štvorkolku"}
+    ]
+  }
+]
