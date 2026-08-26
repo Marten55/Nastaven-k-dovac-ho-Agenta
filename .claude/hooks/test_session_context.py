@@ -6,6 +6,7 @@ do hlasenia hooku, takze cela relacia zacinala hlaskou 'neznamy rezim'. Odvtedy
 sa oba zoznamy porovnavaju.
 """
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -17,13 +18,21 @@ KLIENT = KOREN / "mcp-servers/woo-mcp/src/woo_mcp/client.py"
 
 
 def spusti(mode: str) -> str:
-    """Zavola hook s danym WOO_MODE a vrati vpichnuty kontext."""
+    """Zavola hook s danym WOO_MODE a vrati vpichnuty kontext.
+
+    Prostredie sa dedi a prepisu sa len dve premenne. Podvrhnut cely env
+    sa neda - na Windows sa Python bez SystemRoot ani nenaskrutkuje.
+    """
     vystup = subprocess.run(
         [sys.executable, str(HOOK)], input="{}",
         capture_output=True, text=True, encoding="utf-8",
-        env={"WOO_MODE": mode, "CLAUDE_PROJECT_DIR": str(KOREN),
-             "PATH": "", "SYSTEMROOT": ""},
+        env={**os.environ, "WOO_MODE": mode, "CLAUDE_PROJECT_DIR": str(KOREN)},
     )
+    if vystup.returncode != 0 or not vystup.stdout.strip():
+        raise AssertionError(
+            f"hook zlyhal pre WOO_MODE={mode!r} (kod {vystup.returncode}): "
+            f"{vystup.stderr.strip() or 'ziadny vystup'}"
+        )
     data = json.loads(vystup.stdout)
     assert data["hookSpecificOutput"]["hookEventName"] == "SessionStart"
     return data["hookSpecificOutput"]["additionalContext"]

@@ -319,6 +319,14 @@ def test_alt_text_bez_zmeny_nezapisuje(live_klient, monkeypatch):
     assert vysledok["nahlad_zmien"] == {}
 
 
+def test_alt_text_bez_obrazkov_zlyha_zrozumitelne(live_klient, monkeypatch):
+    """Produkt bez fotiek nie je chyba volajuceho - ale nema co dostat alt text."""
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved(
+        store_produkt(101, obrazky=[])))
+    with pytest.raises(WooChyba, match="nema ziadne obrazky"):
+        live_klient.nastav_alt_texty(101, {"9101": "Alt"})
+
+
 def test_alt_text_v_store_rezime_zlyha(store_klient, monkeypatch):
     monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved(store_produkt(1)))
     with pytest.raises(WooChyba, match="iba na citanie"):

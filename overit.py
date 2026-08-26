@@ -137,7 +137,14 @@ def kontrola() -> list[str]:
     # `mcp__woo__set_alt_text` pre nastroj, ktory nikto nenapisal - opravnenie
     # teda nechranilo nic a subagent ho nemal ako zavolat.
     server = (KOREN / "mcp-servers/woo-mcp/src/woo_mcp/server.py").read_text(encoding="utf-8")
-    existujuce = set(re.findall(r"@mcp\.tool\([^)]*\)\s*\ndef\s+(\w+)", server))
+    # Za kazdym @mcp.tool sa hlada prve `def`. Cez zatvorky dekoratora sa
+    # neparsuje zamerne - `@mcp.tool(annotations=ToolAnnotations(...))` ma
+    # vnorene zatvorky a regex na `([^)]*)` by na nom ticho prestal fungovat.
+    existujuce = set()
+    for blok in server.split("@mcp.tool")[1:]:
+        meno = re.search(r"\ndef\s+(\w+)", blok)
+        if meno:
+            existujuce.add(meno.group(1))
     for zdroj in [KOREN / ".claude/settings.json", *(KOREN / ".claude").rglob("*.md")]:
         if PRESKOCIT & set(zdroj.parts):
             continue

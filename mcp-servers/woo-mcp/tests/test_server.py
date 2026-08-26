@@ -155,6 +155,30 @@ async def test_alt_text_rovnaky_text_nic_nemeni():
     assert "bez_zmeny" in vysledok
 
 
+async def test_alt_text_zvladne_viac_obrazkov_naraz():
+    """Produkt 101 ma dva obrazky bez altu - obidva sa daju doplnit jednym volanim."""
+    vysledok = await zavolaj(
+        "set_alt_text", product_id=101,
+        alt_texty={"9101": "Šasi rám ATV 125 ccm, pohľad zboku",
+                   "9102": "Šasi rám ATV 125 ccm, detail uchytenia motora"},
+    )
+    assert sorted(vysledok["nahlad_zmien"]) == ["9101", "9102"]
+    assert vysledok["zachovanych_obrazkov"] == 0
+
+
+async def test_alt_text_neexistujuceho_produktu_zlyha():
+    vysledok = await zavolaj("set_alt_text", product_id=9999, alt_texty={"1": "Alt"})
+    assert "chyba" in vysledok
+    assert "9999" in vysledok["chyba"]
+
+
+async def test_update_neexistujuceho_produktu_zlyha():
+    """Spolocna kontrola pred zapisom plati pre oba zapisove nastroje."""
+    vysledok = await zavolaj("update_product", product_id=9999, zmeny={"stock_quantity": 1})
+    assert "chyba" in vysledok
+    assert "9999" in vysledok["chyba"]
+
+
 async def test_update_product_varuje_pred_prepisom_galerie():
     """Kto posle images cez update_product, ma sa dozvediet, co to spravi."""
     vysledok = await zavolaj(

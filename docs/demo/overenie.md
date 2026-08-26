@@ -25,8 +25,8 @@ bez nalezov - setup je v poriadku
 
 ```
 $ cd mcp-servers/woo-mcp && uv run python -m pytest tests/ -q
-........................................                                 [100%]
-40 passed in 0.94s
+............................................                             [100%]
+44 passed in 0.96s
 ```
 
 Dva súbory. `test_server.py` beží v režime `fixtures`, `test_store_mode.py` má
@@ -42,6 +42,8 @@ zamockované HTTP. Ani jeden nepotrebuje e-shop ani sieť. Pokrývajú okrem in�
 - že `set_alt_text` pošle celú galériu, nie len menený obrázok — inak by
   WooCommerce zvyšné fotky z produktu zmazal
 - že `set_alt_text` neodošle PUT, keď sa alt text nelíši od súčasného
+- že `set_alt_text` odmietne ID obrázka, ktorý k produktu nepatrí
+- že oba zápisové nástroje zlyhajú zrozumiteľne pri neexistujúcom produkte
 
 ## 3. MCP server naživo cez stdio
 

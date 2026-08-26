@@ -99,7 +99,7 @@ Z koreňa repa ho spúšťa `.mcp.json`:
 uv run python -m pytest tests/ -v
 ```
 
-40 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
+44 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
 `test_store_mode.py` má zamockované HTTP — ani jeden nepotrebuje e-shop ani sieť.
 Pokrývajú okrem iného stránkovanie nad 100 položiek, normalizáciu tvaru zo Store API,
 načítanie fotiek variantov, to, že `store` sa nikdy nezavolá s prihlasovacími údajmi,

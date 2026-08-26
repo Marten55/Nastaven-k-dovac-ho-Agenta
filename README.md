@@ -164,7 +164,7 @@ python overit.py                                    # celý setup
 python .claude/hooks/test_guard.py                  # hook, 10 prípadov
 python .claude/hooks/test_session_context.py        # hook, 12 prípadov
 cd mcp-servers/woo-mcp
-uv run python -m pytest tests/ -q                   # MCP server, 40 testov
+uv run python -m pytest tests/ -q                   # MCP server, 44 testov
 uv run python smoke_stdio.py                        # skutočný MCP handshake cez stdio
 ```
 
@@ -222,7 +222,7 @@ adm-agent-setup/
 ├── mcp-servers/woo-mcp/         vlastný MCP server
 │   ├── src/woo_mcp/             server.py, client.py
 │   ├── fixtures/                demo dáta
-│   ├── tests/                   40 testov
+│   ├── tests/                   44 testov
 │   └── smoke_stdio.py           overenie cez skutočný MCP protokol
 └── docs/
     ├── architektura.md          diagram a dôvody
