@@ -24,7 +24,7 @@ flowchart TB
     HL --> MCP
 
     subgraph MCP["MCP servery"]
-        M1["woo<br/>vlastný, 7 nástrojov"]
+        M1["woo<br/>vlastný, 8 nástrojov"]
         M2["playwright<br/>tretia strana"]
         M3["fetch<br/>tretia strana"]
     end
@@ -71,8 +71,9 @@ veci, ktoré generický nevie:
 | | Generický HTTP MCP | `woo` |
 |---|---|---|
 | Veľkosť odpovede | celý objekt, 60+ polí na produkt | 8 polí, zvyšok na vyžiadanie |
-| Bezpečnosť zápisu | zapíše, čo dostane | tri režimy, mimo `live` iba náhľad |
+| Bezpečnosť zápisu | zapíše, čo dostane | štyri režimy, mimo `live` iba náhľad |
 | Doménová logika | žiadna | `audit_seo` vrátane kontroly diakritiky |
+| Pasce WooCommerce | nevie o nich | `set_alt_text` nezmaže galériu, stránkovanie nad 100 |
 
 ### Hooky riešia to, čo inštrukcia neuchráni
 

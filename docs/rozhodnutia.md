@@ -93,7 +93,43 @@ len vracali menšie čísla, než je pravda. To je horší druh chyby než výni
 a vypnutý rozsah sa hlási v poli `nekontrolovane`. Nástroj, ktorý zamlčí, čo nevidel,
 je nebezpečnejší než nástroj, ktorý zlyhá nahlas.
 
-## 9. Čo sa do setupu zámerne nedostalo
+## 9. Alt texty majú vlastný nástroj, nie `update_product`
+
+**Rozhodnutie:** pridať `set_alt_text` ako samostatný ôsmy nástroj.
+
+**Prečo:** WooCommerce pole `images` pri zápise nahradí **celú galériu** tým, čo
+dostane — nespráva sa ako čiastočná zmena, hoci každé iné pole áno. Oprava alt textu
+poslaná naivne ako `update_product(id, {"images": [{"id": 9101, "alt": "…"}]})`
+teda produktu zmaže všetky ostatné fotky aj ich poradie a REST to potvrdí ako
+úspešný zápis. To je presne ten druh tichej chyby, ktorý setup rieši od bodu 8.
+
+`set_alt_text` galériu najprv načíta, doplní do nej nové alt texty a pošle ju celú.
+Navyše odmietne ID obrázka, ktorý k produktu nepatrí, a keď sa text nelíši od
+súčasného, PUT vôbec neodošle.
+
+**Prečo to nebolo hneď:** nástroj bol roky vedený v `permissions.ask` v
+`.claude/settings.json` a spomínaný v bode 4 tohto denníka, ale nikdy nebol
+napísaný. Konfigurácia teda pýtala potvrdenie na niečo, čo neexistovalo, a audit
+síce chýbajúce alt texty našiel, no nemal ich čím opraviť. `overit.py` odvtedy
+kontroluje, že každý nástroj spomenutý v konfigurácii je v `server.py` naozaj
+zaregistrovaný.
+
+**Cena:** ôsmy nástroj v zozname a jedno čítanie navyše pred každým zápisom altu.
+
+## 10. Overenia beží CI, nie disciplína
+
+**Rozhodnutie:** `.github/workflows/kontrola.yml` spúšťa pri každom pushi tie isté
+štyri overenia, aké sú v README, plus testy oboch hookov.
+
+**Prečo:** dovtedy sa spúšťali ručne, takže platili len dovtedy, kým si na ne
+niekto spomenul. Obe chyby, ktoré viedli k bodu 9 a k testu `session_context.py`,
+sú presne toho typu, čo CI zachytí okamžite a čítanie kódu nie: konfigurácia
+odkazovala na nástroj, ktorý neexistoval, a hook nepoznal režim, ktorý medzitým
+pribudol do servera. Ani jedna z nich nepadala — obe len ticho nefungovali.
+
+**Cena:** jeden workflow navyše a nutnosť držať README v súlade s tým, čo CI beží.
+
+## 11. Čo sa do setupu zámerne nedostalo
 
 | Vec | Prečo nie |
 |---|---|

@@ -256,38 +256,23 @@ class WooClient:
 
     # --- zapis -----------------------------------------------------------
 
-    def uprav_produkt(self, product_id: int, zmeny: dict[str, Any]) -> dict[str, Any]:
+    def _pred_zapisom(self, product_id: int) -> dict[str, Any]:
+        """Spolocna kontrola pre kazdy zapis: rezim a existencia produktu."""
         if self.mode == "store":
             raise WooChyba(
                 "Rezim 'store' je iba na citanie - Store API zapis neumoznuje. "
                 "Na zapis pouzi WOO_MODE=live s API klucmi."
             )
-
         povodny = self.produkt(str(product_id))
         if povodny is None:
             raise WooChyba(f"Produkt {product_id} neexistuje.")
+        return povodny
 
-        nahlad = {
-            pole: {"predtym": povodny.get(pole), "potom": hodnota}
-            for pole, hodnota in zmeny.items()
-        }
-
-        if not self.zapis_povoleny:
-            return {
-                "vykonane": False,
-                "rezim": self.mode,
-                "product_id": product_id,
-                "nahlad_zmien": nahlad,
-                "poznamka": (
-                    f"Zmena sa NEZAPISALA. Rezim je '{self.mode}'. "
-                    "Na skutocny zapis nastav WOO_MODE=live."
-                ),
-            }
-
+    def _put(self, product_id: int, telo: dict[str, Any]) -> None:
         url = f"{self.base_url}/wp-json/wc/v3/products/{product_id}"
         try:
             odpoved = httpx.put(
-                url, json=zmeny, auth=(self.key, self.secret),
+                url, json=telo, auth=(self.key, self.secret),
                 timeout=30.0, follow_redirects=True,
             )
         except httpx.HTTPError as chyba:
@@ -295,9 +280,110 @@ class WooClient:
         if odpoved.status_code >= 400:
             raise WooChyba(f"WooCommerce vratil {odpoved.status_code}: {odpoved.text[:300]}")
 
-        return {
-            "vykonane": True,
+    def uprav_produkt(self, product_id: int, zmeny: dict[str, Any]) -> dict[str, Any]:
+        povodny = self._pred_zapisom(product_id)
+
+        nahlad = {
+            pole: {"predtym": povodny.get(pole), "potom": hodnota}
+            for pole, hodnota in zmeny.items()
+        }
+
+        vysledok: dict[str, Any] = {
+            "vykonane": False,
             "rezim": self.mode,
             "product_id": product_id,
             "nahlad_zmien": nahlad,
         }
+
+        # Pole `images` sa pri PUT sprava inak nez ostatne polia - nahradi celu
+        # galeriu tym, co dostane. Kto posle len jeden obrazok, zvysok fotiek
+        # z produktu zmaze. Na alt texty je preto samostatny nastroj.
+        if "images" in zmeny:
+            vysledok["upozornenie"] = (
+                "Pole 'images' nahradi CELU galeriu produktu tym, co posles - "
+                "obrazky, ktore v zozname nie su, sa z produktu odstrania. "
+                "Ak chces zmenit iba alt texty, pouzi set_alt_text, ktory "
+                "aktualnu galeriu nacita a zachova."
+            )
+
+        if not self.zapis_povoleny:
+            vysledok["poznamka"] = (
+                f"Zmena sa NEZAPISALA. Rezim je '{self.mode}'. "
+                "Na skutocny zapis nastav WOO_MODE=live."
+            )
+            return vysledok
+
+        self._put(product_id, zmeny)
+        vysledok["vykonane"] = True
+        return vysledok
+
+    def nastav_alt_texty(self, product_id: int,
+                         alt_texty: dict[str, str]) -> dict[str, Any]:
+        """Zmeni alt texty vybranych obrazkov a zvysok galerie necha tak.
+
+        WooCommerce pri zapise pola `images` nahradi celu galeriu tym, co
+        dostane. Naivny update s jednym obrazkom teda produkt oholi o vsetky
+        ostatne fotky vratane poradia. Preto sa tu galeria najprv nacita,
+        nove alt texty sa do nej doplnia a posle sa cela.
+        """
+        povodny = self._pred_zapisom(product_id)
+
+        obrazky = povodny.get("images", [])
+        if not obrazky:
+            raise WooChyba(f"Produkt {product_id} nema ziadne obrazky.")
+
+        poziadavky = {str(kluc): hodnota for kluc, hodnota in alt_texty.items()}
+        zname = {str(o.get("id")) for o in obrazky}
+        cudzie = sorted(poziadavky.keys() - zname)
+        if cudzie:
+            raise WooChyba(
+                f"Obrazky {', '.join(cudzie)} k produktu {product_id} nepatria. "
+                f"Produkt ma obrazky: {', '.join(sorted(zname))}. "
+                "ID obrazkov vrati get_product. Pozor, obrazok varianty patri "
+                "variante, nie rodicovskemu produktu - zapisuje sa na jej ID."
+            )
+
+        galeria: list[dict[str, Any]] = []
+        nahlad: dict[str, Any] = {}
+        bez_zmeny: list[str] = []
+        for o in obrazky:
+            oid = str(o.get("id"))
+            povodny_alt = o.get("alt") or ""
+            novy_alt = poziadavky.get(oid, povodny_alt)
+            galeria.append({"id": o.get("id"), "alt": novy_alt})
+            if oid not in poziadavky:
+                continue
+            if novy_alt == povodny_alt:
+                bez_zmeny.append(oid)
+            else:
+                nahlad[oid] = {"predtym": povodny_alt, "potom": novy_alt}
+
+        vysledok: dict[str, Any] = {
+            "vykonane": False,
+            "rezim": self.mode,
+            "product_id": product_id,
+            "nahlad_zmien": nahlad,
+            "zachovanych_obrazkov": len(obrazky) - len(nahlad),
+        }
+        if bez_zmeny:
+            vysledok["bez_zmeny"] = (
+                f"Obrazky {', '.join(bez_zmeny)} uz mali presne tento alt text."
+            )
+
+        if not nahlad:
+            vysledok["poznamka"] = (
+                "Nic sa nemeni - ziadny z poslanych alt textov sa nelisi od "
+                "toho, co je na produkte teraz."
+            )
+            return vysledok
+
+        if not self.zapis_povoleny:
+            vysledok["poznamka"] = (
+                f"Zmena sa NEZAPISALA. Rezim je '{self.mode}'. "
+                "Na skutocny zapis nastav WOO_MODE=live."
+            )
+            return vysledok
+
+        self._put(product_id, {"images": galeria})
+        vysledok["vykonane"] = True
+        return vysledok

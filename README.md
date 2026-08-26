@@ -17,7 +17,8 @@ nestačí.
 | Skills | 5 | `.claude/skills/` |
 | Subagenti | 4 | `.claude/agents/` |
 | Slash príkazy | 3 | `.claude/commands/` |
-| Hooky | 2 (otestované) | `.claude/hooks/` |
+| Hooky | 2 (oba otestované) | `.claude/hooks/` |
+| CI | 1 workflow | `.github/workflows/` |
 
 Ako to do seba zapadá vrátane diagramu: [docs/architektura.md](docs/architektura.md)
 Prečo je to postavené takto: [docs/rozhodnutia.md](docs/rozhodnutia.md)
@@ -54,17 +55,17 @@ celý setup sa dá vyskúšať bez prístupu k akémukoľvek e-shopu.
 
 | Server | Pôvod | Na čo |
 |---|---|---|
-| **`woo`** | **vlastný** | 7 nástrojov nad WooCommerce REST API |
+| **`woo`** | **vlastný** | 8 nástrojov nad WooCommerce REST API |
 | `playwright` | tretia strana | vizuálna kontrola e-shopu v prehliadači |
 | `fetch` | tretia strana | načítanie stránky alebo dokumentácie |
 
 ### `woo` — vlastný server
 
-Sedem nástrojov: `server_status`, `search_products`, `get_product`, `check_stock`,
-`list_orders`, `audit_seo`, `update_product`.
+Osem nástrojov: `server_status`, `search_products`, `get_product`, `check_stock`,
+`list_orders`, `audit_seo`, `update_product`, `set_alt_text`.
 Dokumentácia: [mcp-servers/woo-mcp/README.md](mcp-servers/woo-mcp/README.md)
 
-Štyri veci, ktoré ho odlišujú od generického HTTP MCP servera:
+Päť vecí, ktoré ho odlišujú od generického HTTP MCP servera:
 
 1. **Šetrí kontext.** WooCommerce vracia na produkt vyše 60 polí. `search_products`
    ich oreže na osem, zvyšok si agent vypýta cez `get_product` len pre produkt, ktorý
@@ -79,6 +80,9 @@ Dokumentácia: [mcp-servers/woo-mcp/README.md](mcp-servers/woo-mcp/README.md)
 4. **Nezamlčí, čo nevidel.** Stránkuje nad hranicou 100 položiek, ktorú WooCommerce
    vnucuje, kontroluje aj fotky jednotlivých variantov a orezaný výsledok vždy označí
    poľom `upozornenie`. Ticho neúplný audit je horší než žiadny.
+5. **Nezmaže fotky pri oprave alt textu.** Pole `images` vo WooCommerce nahradí celú
+   galériu, nie len poslaný obrázok — naivná oprava alt textu produkt oholí o zvyšné
+   fotky a REST to potvrdí ako úspech. `set_alt_text` galériu načíta, doplní a pošle celú.
 
 Nástroje sú označené `ToolAnnotations`, takže klient vie, ktoré sú bezpečné volať
 bez pýtania a ktoré menia dáta.
@@ -135,14 +139,19 @@ zápisové nástroje jednoducho nemajú.
 | `guard_wp_core.py` | `PreToolUse` na Write/Edit | zamietne zápis do `wp-includes`, `wp-admin`, cudzieho pluginu a rodičovskej témy; povolí child tému a vlastné ADM pluginy |
 | `session_context.py` | `SessionStart` | vpichne do kontextu režim MCP servera, stav `.env` a git vetvu |
 
-Guard má vlastnú testovaciu sadu s 10 prípadmi:
+Oba hooky majú vlastnú testovaciu sadu:
 
 ```bash
-python .claude/hooks/test_guard.py
+python .claude/hooks/test_guard.py             # 10 prípadov
+python .claude/hooks/test_session_context.py   # 12 prípadov
 ```
 
-Bez nej by hook buď blokoval legitímnu prácu v child téme, alebo prepúšťal zápisy
-do jadra. Oboje je horšie než žiadny hook.
+Bez testu guardu by hook buď blokoval legitímnu prácu v child téme, alebo prepúšťal
+zápisy do jadra. Oboje je horšie než žiadny hook.
+
+Test `session_context.py` porovnáva jeho zoznam režimov s `PLATNE_REZIMY` v MCP
+klientovi. Presne toto raz prekĺzlo: režim `store` pribudol do servera, ale nie do
+hlásenia hooku, takže každá relácia začínala hláškou „neznámy režim".
 
 ---
 
@@ -153,12 +162,17 @@ Všetko sa dá reprodukovať bez e-shopu a bez sieťového prístupu k WooCommer
 ```bash
 python overit.py                                    # celý setup
 python .claude/hooks/test_guard.py                  # hook, 10 prípadov
+python .claude/hooks/test_session_context.py        # hook, 12 prípadov
 cd mcp-servers/woo-mcp
-uv run python -m pytest tests/ -q                   # MCP server, 32 testov
+uv run python -m pytest tests/ -q                   # MCP server, 40 testov
 uv run python smoke_stdio.py                        # skutočný MCP handshake cez stdio
 ```
 
-Zachytené výstupy všetkých štyroch: [docs/demo/overenie.md](docs/demo/overenie.md)
+Zachytené výstupy všetkých piatich: [docs/demo/overenie.md](docs/demo/overenie.md)
+
+To isté beží pri každom pushi cez GitHub Actions:
+[.github/workflows/kontrola.yml](.github/workflows/kontrola.yml). Rozpor medzi
+konfiguráciou a kódom tak spadne hneď, nie až pri odovzdávke.
 
 ### Že to naozaj beží bez pluginov
 
@@ -183,7 +197,9 @@ premennú `CLAUDE_CONFIG_DIR`.
   heslá v kóde) a zlyhá, ak niečo nájde.
 - `.claude/settings.json` zakazuje čítanie `.env`, `git push --force` a `rm -rf`.
 - Zápisové MCP nástroje sú v `permissions.ask`, čítacie v `allow` — potvrdenie sa
-  pýta len tam, kde má význam.
+  pýta len tam, kde má význam. `overit.py` navyše kontroluje, že každý nástroj,
+  na ktorý sa konfigurácia odvoláva, v serveri naozaj existuje — oprávnenie pre
+  neexistujúci nástroj nechráni nič.
 - V dokumentácii a demo dátach je `example-shop.sk`, žiadna reálna klientska doména.
 
 ---
@@ -196,16 +212,17 @@ adm-agent-setup/
 ├── .mcp.json                    MCP servery
 ├── .env.example                 vzor prístupov
 ├── overit.py                    kontrola celého setupu
+├── .github/workflows/           CI: všetky overenia pri každom pushi
 ├── .claude/
 │   ├── settings.json            oprávnenia a hooky
 │   ├── agents/                  4 subagenti
 │   ├── skills/                  5 skillov
 │   ├── commands/                3 slash príkazy
-│   └── hooks/                   2 hooky + testy
+│   └── hooks/                   2 hooky + testy k obom
 ├── mcp-servers/woo-mcp/         vlastný MCP server
 │   ├── src/woo_mcp/             server.py, client.py
 │   ├── fixtures/                demo dáta
-│   ├── tests/                   32 testov
+│   ├── tests/                   40 testov
 │   └── smoke_stdio.py           overenie cez skutočný MCP protokol
 └── docs/
     ├── architektura.md          diagram a dôvody

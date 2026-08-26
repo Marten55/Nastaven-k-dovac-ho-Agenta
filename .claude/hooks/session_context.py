@@ -17,9 +17,18 @@ ROOT = pathlib.Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
 MODE_POPIS = {
     "fixtures": "OFFLINE demo data z mcp-servers/woo-mcp/fixtures/ - "
                 "cisla NIE su stav realneho e-shopu, neprezentuj ich klientovi",
+    "store": "verejne Store API - REALNE data e-shopu, iba citanie bez klucov; "
+             "objednavky, skladove mnozstva a koncepty tento rezim nevracia",
     "dry-run": "cita naozivo, zapisy sa iba simuluju a vracia sa nahlad zmeny",
     "live": "PLNY ZAPIS do e-shopu - kazdy update meni realne data",
 }
+
+# Rezim, ktory tu nie je, woo MCP server odmietne spustit. Hlasenie preto
+# rovno hovori, co s tym - inak by sa to prejavilo az chybou pri prvom volani.
+NEZNAMY = (
+    "NEZNAMY rezim - woo MCP server sa v nom odmietne spustit. "
+    "Povolene su: " + ", ".join(MODE_POPIS) + ". Oprav WOO_MODE v .env."
+)
 
 
 def woo_mode() -> str:
@@ -53,7 +62,7 @@ def main() -> None:
     riadky = [
         "## Stav projektu (SessionStart hook)",
         "",
-        f"- woo MCP rezim: **{mode}** - {MODE_POPIS.get(mode, 'neznamy rezim')}",
+        f"- woo MCP rezim: **{mode}** - {MODE_POPIS.get(mode, NEZNAMY)}",
         f"- .env: {'existuje' if (ROOT / '.env').exists() else 'CHYBA - skopiruj .env.example na .env'}",
         f"- git vetva: {git_branch()}",
         f"- k dispozicii: {spocitaj('skills', '*/SKILL.md')} skillov, "

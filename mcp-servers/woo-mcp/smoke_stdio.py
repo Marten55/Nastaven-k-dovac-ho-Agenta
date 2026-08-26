@@ -52,6 +52,13 @@ async def main() -> int:
             print(f"\nupdate_product -> vykonane={zapis_test['vykonane']} "
                   f"(spravne False, lebo rezim je fixtures)")
 
+            alt_test = json.loads((await session.call_tool(
+                "set_alt_text",
+                {"product_id": 104, "alt_texty": {"9401": "Detska crossova prilba, celny pohlad"}}
+            )).content[0].text)
+            print(f"set_alt_text   -> meni sa {len(alt_test['nahlad_zmien'])} obrazok, "
+                  f"{alt_test['zachovanych_obrazkov']} zostava nedotknuty")
+
     print("\nVSETKO OK")
     return 0
 

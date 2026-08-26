@@ -32,6 +32,11 @@ Nikdy nezačínaj zápisom. Vždy najprv:
 Alt text nie je názov súboru ani zopakovaný názov produktu. Napíš, čo je na fotke
 vrátane pohľadu: „Predné brzdové doštičky pre štvorkolku XB48, pohľad zhora".
 
+Zapisuj ich **iba cez `mcp__woo__set_alt_text`**. `update_product` s poľom `images`
+nahradí celú galériu tým, čo pošleš — produkt tak príde o všetky fotky, ktoré si
+do zoznamu nedal, a WooCommerce to potvrdí ako úspech. ID obrázkov vráti
+`mcp__woo__get_product` v poli `obrazky`.
+
 Diakritika: **skontroluj, či font na webe vykresľuje Š, Č, Ť, Ľ, Ž**. Subset fontu
 z Adobe web kitu ich často neobsahuje a na webe sa zobrazia ako prázdne miesto.
 `mcp__woo__audit_seo` na to upozorní, ale rozhodnutie je vizuálne — over v prehliadači.

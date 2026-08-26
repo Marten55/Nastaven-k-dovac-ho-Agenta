@@ -8,9 +8,11 @@ Univerzálny HTTP MCP server by e-shop obslúžil tiež, ale za cenu kontextu a 
 
 - WooCommerce vracia na jeden produkt vyše 60 polí. `search_products` ich oreže na 8,
   takže výpis 20 produktov stojí stovky tokenov namiesto tisícov.
-- Zápis je za trojstupňovým režimom, takže sa nedá „omylom naživo".
+- Zápis je za štvorstupňovým režimom, takže sa nedá „omylom naživo".
 - `audit_seo` je doménová kontrola, ktorú generický server nevie — vrátane rizikovej
   diakritiky v názvoch (subset fontu bez slovenských mäkčeňov ich zobrazí ako medzeru).
+- `set_alt_text` obchádza pascu, na ktorej generický server tichoducho zmaže fotky:
+  pole `images` nahradí celú galériu, nie len poslaný obrázok.
 
 ## Režimy
 
@@ -45,6 +47,22 @@ sa v tomto režime nedá nič pokaziť ani omylom.
 | `list_orders` | objednávky podľa stavu |
 | `audit_seo` | chýbajúce alt texty, krátke popisy, dlhé názvy, riziková diakritika |
 | `update_product` | úprava produktu, mimo `live` iba náhľad zmeny |
+| `set_alt_text` | alt texty obrázkov bez prepísania galérie, mimo `live` iba náhľad |
+
+### Prečo má alt text vlastný nástroj
+
+WooCommerce pole `images` pri zápise **nahradí celú galériu** tým, čo dostane.
+Nie je to čiastočná zmena ako pri ostatných poliach. Kto teda opraví alt text
+naivne cez `update_product` a pošle len ten jeden menený obrázok, produktu tým
+zmaže všetky ostatné fotky aj ich poradie — a WooCommerce to potvrdí ako úspech.
+
+`set_alt_text` preto galériu najprv načíta, doplní do nej nové alt texty
+a pošle ju celú. Zápis navyše odmietne ID obrázka, ktorý k produktu nepatrí
+(typicky preklep alebo fotka variantu, ktorá visí na ID variantu), a keď sa
+alt text nelíši od súčasného, PUT vôbec neodošle.
+
+`update_product` na `images` upozorní, ale nebráni — galéria sa občas naozaj
+vymieňa zámerne.
 
 ### Stránkovanie a varianty
 
@@ -81,10 +99,11 @@ Z koreňa repa ho spúšťa `.mcp.json`:
 uv run python -m pytest tests/ -v
 ```
 
-32 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
+40 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
 `test_store_mode.py` má zamockované HTTP — ani jeden nepotrebuje e-shop ani sieť.
 Pokrývajú okrem iného stránkovanie nad 100 položiek, normalizáciu tvaru zo Store API,
-načítanie fotiek variantov a to, že `store` sa nikdy nezavolá s prihlasovacími údajmi.
+načítanie fotiek variantov, to, že `store` sa nikdy nezavolá s prihlasovacími údajmi,
+a že `set_alt_text` pošle celú galériu, nie len menený obrázok.
 
 ## Prihlasovacie údaje
 

@@ -1,0 +1,42 @@
+name: Kontrola setupu
+
+# Rovnaké štyri overenia, aké sú v README v sekcii „Overenie". Bežia pri každom
+# pushi, takže rozpor medzi konfiguráciou a kódom (napr. nástroj v settings.json,
+# ktorý v serveri neexistuje) padne hneď, nie až pri odovzdávke.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  kontrola:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nainštaluj uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Nainštaluj Python
+        run: uv python install 3.12
+
+      - name: Validácia celého repa
+        run: uv run --no-project python overit.py
+
+      - name: Hook proti zápisu do cudzieho WordPress kódu
+        run: uv run --no-project python .claude/hooks/test_guard.py
+
+      - name: Hook so stavom projektu
+        run: uv run --no-project python .claude/hooks/test_session_context.py
+
+      - name: Testy MCP servera
+        working-directory: mcp-servers/woo-mcp
+        run: uv run python -m pytest tests/ -q
+
+      - name: MCP handshake cez stdio
+        working-directory: mcp-servers/woo-mcp
+        run: uv run python smoke_stdio.py

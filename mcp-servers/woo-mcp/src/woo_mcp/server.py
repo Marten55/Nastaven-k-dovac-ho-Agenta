@@ -269,9 +269,35 @@ def update_product(product_id: int, zmeny: dict[str, Any]) -> dict[str, Any]:
     product_id: ciselne ID produktu
     zmeny: slovnik poli WooCommerce REST, napr.
            {"short_description": "...", "stock_quantity": 5}
+
+    Na alt texty tento nastroj NEPOUZIVAJ - pole `images` nahradi celu galeriu
+    produktu. Na to je set_alt_text.
     """
     try:
         return klient().uprav_produkt(product_id, zmeny)
+    except WooChyba as chyba:
+        return {"chyba": str(chyba)}
+
+
+@mcp.tool(annotations=ZAPIS)
+def set_alt_text(product_id: int, alt_texty: dict[str, str]) -> dict[str, Any]:
+    """Doplni alebo prepise alt texty obrazkov produktu. Mimo `live` iba nahlad.
+
+    product_id: ciselne ID produktu
+    alt_texty: {"<id obrazka>": "alt text"}. ID obrazkov vrati get_product
+        v poli `obrazky`. Poslat sa daju aj len niektore - zvysok galerie
+        zostane nedotknuty.
+
+    Preco samostatny nastroj a nie update_product: WooCommerce pri zapise pola
+    `images` nahradi CELU galeriu tym, co dostane. Kto posle len menene obrazky,
+    zvysne fotky z produktu zmaze. Tento nastroj aktualnu galeriu najprv
+    nacita, doplni do nej nove alt texty a posle ju celu.
+
+    Alt text pis ako popis toho, co je na fotke, vratane pohladu - nie nazov
+    suboru ani zopakovany nazov produktu.
+    """
+    try:
+        return klient().nastav_alt_texty(product_id, alt_texty)
     except WooChyba as chyba:
         return {"chyba": str(chyba)}
 

@@ -29,6 +29,7 @@ async def test_vsetky_nastroje_su_registrovane():
     assert nazvy == {
         "server_status", "search_products", "get_product",
         "check_stock", "list_orders", "audit_seo", "update_product",
+        "set_alt_text",
     }
 
 
@@ -43,8 +44,9 @@ async def test_citacie_nastroje_su_oznacene_ako_read_only():
     for nazov in ("server_status", "search_products", "get_product",
                   "check_stock", "list_orders", "audit_seo"):
         assert anotacie[nazov].read_only_hint is True, nazov
-    assert anotacie["update_product"].read_only_hint is False
-    assert anotacie["update_product"].destructive_hint is True
+    for nazov in ("update_product", "set_alt_text"):
+        assert anotacie[nazov].read_only_hint is False, nazov
+        assert anotacie[nazov].destructive_hint is True, nazov
 
 
 async def test_hladanie_podla_sku():
@@ -113,6 +115,54 @@ async def test_zapis_mimo_live_iba_simuluje():
     )
     assert vysledok["vykonane"] is False
     assert vysledok["nahlad_zmien"]["stock_quantity"] == {"predtym": 4, "potom": 99}
+
+
+async def test_alt_text_mimo_live_iba_simuluje():
+    vysledok = await zavolaj(
+        "set_alt_text", product_id=101,
+        alt_texty={"9101": "Šasi rám pre štvorkolku ATV 125 ccm, pohľad zboku"},
+    )
+    assert vysledok["vykonane"] is False
+    assert vysledok["nahlad_zmien"]["9101"]["predtym"] == ""
+    assert "štvorkolku" in vysledok["nahlad_zmien"]["9101"]["potom"]
+
+
+async def test_alt_text_nechava_ostatne_obrazky_na_pokoji():
+    """Produkt 104 ma jeden obrazok s altom a jeden bez. Meni sa len ten bez."""
+    vysledok = await zavolaj(
+        "set_alt_text", product_id=104,
+        alt_texty={"9401": "Detská crossová prilba, čelný pohľad"},
+    )
+    assert list(vysledok["nahlad_zmien"]) == ["9401"]
+    assert vysledok["zachovanych_obrazkov"] == 1
+
+
+async def test_alt_text_odmietne_cudzi_obrazok():
+    """ID obrazka z ineho produktu je typicky preklep - nesmie prejst ticho."""
+    vysledok = await zavolaj(
+        "set_alt_text", product_id=101, alt_texty={"9501": "Motorový olej"}
+    )
+    assert "chyba" in vysledok
+    assert "9501" in vysledok["chyba"]
+
+
+async def test_alt_text_rovnaky_text_nic_nemeni():
+    vysledok = await zavolaj(
+        "set_alt_text", product_id=104,
+        alt_texty={"9402": "Detská crossová prilba, bočný pohľad"},
+    )
+    assert vysledok["nahlad_zmien"] == {}
+    assert "bez_zmeny" in vysledok
+
+
+async def test_update_product_varuje_pred_prepisom_galerie():
+    """Kto posle images cez update_product, ma sa dozvediet, co to spravi."""
+    vysledok = await zavolaj(
+        "update_product", product_id=101,
+        zmeny={"images": [{"id": 9101, "alt": "Šasi"}]},
+    )
+    assert "upozornenie" in vysledok
+    assert "set_alt_text" in vysledok["upozornenie"]
 
 
 def test_neplatny_rezim_zlyha_hned():

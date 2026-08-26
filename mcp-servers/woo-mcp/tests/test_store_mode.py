@@ -258,6 +258,73 @@ async def test_audit_bez_variantov_ich_prizna(monkeypatch):
     monkeypatch.setattr(srv, "_klient", None)
 
 
+# --- alt texty ----------------------------------------------------------
+
+
+@pytest.fixture
+def live_klient(monkeypatch):
+    monkeypatch.setenv("WOO_MODE", "live")
+    monkeypatch.setenv("WOO_BASE_URL", "https://example-shop.sk")
+    monkeypatch.setenv("WOO_CONSUMER_KEY", "ck_test")
+    monkeypatch.setenv("WOO_CONSUMER_SECRET", "cs_test")
+    return WooClient()
+
+
+def test_alt_text_posle_celu_galeriu(live_klient, monkeypatch):
+    """Toto je cely dovod, preco set_alt_text existuje.
+
+    WooCommerce nahradi galeriu tym, co dostane. Keby sme poslali len menený
+    obrazok, produkt by prisiel o zvysne dve fotky.
+    """
+    produkt = store_produkt(101, obrazky=[
+        {"id": 9101, "src": "https://x/a.jpg", "alt": ""},
+        {"id": 9102, "src": "https://x/b.jpg", "alt": "Zadny pohlad"},
+        {"id": 9103, "src": "https://x/c.jpg", "alt": "Detail uchytenia"},
+    ])
+    odoslane = {}
+
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved(produkt))
+
+    def falosny_put(url, json=None, **kw):
+        odoslane["telo"] = json
+        return FalosnaOdpoved(produkt)
+
+    monkeypatch.setattr(httpx, "put", falosny_put)
+
+    vysledok = live_klient.nastav_alt_texty(101, {"9101": "Predny pohlad"})
+
+    assert vysledok["vykonane"] is True
+    poslane_obrazky = odoslane["telo"]["images"]
+    assert [o["id"] for o in poslane_obrazky] == [9101, 9102, 9103], \
+        "musia sa poslat vsetky obrazky, inak WooCommerce zvysok zmaze"
+    assert poslane_obrazky[0]["alt"] == "Predny pohlad"
+    assert poslane_obrazky[1]["alt"] == "Zadny pohlad", "cudzi alt sa nesmie stratit"
+    assert poslane_obrazky[2]["alt"] == "Detail uchytenia"
+
+
+def test_alt_text_bez_zmeny_nezapisuje(live_klient, monkeypatch):
+    """Zbytocny PUT na produkt je zbytocne riziko - nesmie odist."""
+    produkt = store_produkt(101, obrazky=[
+        {"id": 9101, "src": "https://x/a.jpg", "alt": "Predny pohlad"},
+    ])
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved(produkt))
+
+    def nesmie_sa_zavolat(*a, **kw):
+        raise AssertionError("PUT sa nemal poslat, alt text je uz spravny")
+
+    monkeypatch.setattr(httpx, "put", nesmie_sa_zavolat)
+
+    vysledok = live_klient.nastav_alt_texty(101, {"9101": "Predny pohlad"})
+    assert vysledok["vykonane"] is False
+    assert vysledok["nahlad_zmien"] == {}
+
+
+def test_alt_text_v_store_rezime_zlyha(store_klient, monkeypatch):
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved(store_produkt(1)))
+    with pytest.raises(WooChyba, match="iba na citanie"):
+        store_klient.nastav_alt_texty(1, {"901": "Alt"})
+
+
 def test_prazdny_html_popis_je_chybajuci_popis():
     from woo_mcp.server import _bez_html
     assert _bez_html("<p></p>") == ""

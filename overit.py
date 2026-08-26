@@ -53,7 +53,8 @@ def kontrola() -> list[str]:
             except Exception as e:
                 chyby.append(f"{rel}: nevalidny JSON - {e}")
 
-        if p.suffix in {".md", ".py", ".js", ".json", ".toml"} and p.name != ".env.example":
+        if p.suffix in {".md", ".py", ".js", ".json", ".toml", ".yml", ".yaml"} \
+                and p.name != ".env.example":
             text = raw.decode("utf-8", errors="replace")
             for vzor, popis in TAJOMSTVA:
                 if re.search(vzor, text):
@@ -130,6 +131,22 @@ def kontrola() -> list[str]:
     for c in prikazy:
         if "description:" not in c.read_text(encoding="utf-8").split("---")[1]:
             chyby.append(f"commands/{c.name}: chyba description")
+
+    # Kazdy nastroj woo MCP, na ktory sa konfiguracia odvolava, musi v serveri
+    # naozaj existovat. Bez tejto kontroly sa v settings.json roky vozil zapis
+    # `mcp__woo__set_alt_text` pre nastroj, ktory nikto nenapisal - opravnenie
+    # teda nechranilo nic a subagent ho nemal ako zavolat.
+    server = (KOREN / "mcp-servers/woo-mcp/src/woo_mcp/server.py").read_text(encoding="utf-8")
+    existujuce = set(re.findall(r"@mcp\.tool\([^)]*\)\s*\ndef\s+(\w+)", server))
+    for zdroj in [KOREN / ".claude/settings.json", *(KOREN / ".claude").rglob("*.md")]:
+        if PRESKOCIT & set(zdroj.parts):
+            continue
+        for nastroj in set(re.findall(r"mcp__woo__(\w+)", zdroj.read_text(encoding="utf-8"))):
+            if nastroj not in existujuce:
+                chyby.append(
+                    f"{zdroj.relative_to(KOREN)}: odkazuje na nastroj "
+                    f"mcp__woo__{nastroj}, ktory v server.py neexistuje"
+                )
 
     # ziadne pluginy
     nastavenia = json.loads((KOREN / ".claude/settings.json").read_text(encoding="utf-8"))
