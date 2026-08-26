@@ -23,8 +23,7 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Bash(rm -rf:*)",
-      "Bash(curl:* -u *)",
-      "WebFetch(domain:*.admtechnics.sk)"
+      "Bash(curl:* -u *)"
     ],
     "ask": [
       "mcp__woo__update_product",
