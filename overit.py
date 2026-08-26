@@ -5,9 +5,10 @@ Overuje, ze konfiguracia je platna a ze sa da odovzdat:
   - JSON subory su validne
   - ziadny subor nema UTF-8 BOM (rozbije parsovanie SKILL.md)
   - kazdy skill ma SKILL.md s poliami name a description
-  - odkazy zo SKILL.md na references/ a scripts/ vedu na existujuce subory
+  - vsetky relativne odkazy vo vsetkych .md vedu na existujuce subory
   - kazdy subagent ma name, description a obmedzeny zoznam nastrojov
   - kazdy prikaz ma description
+  - zachytene vystupy v docs/ neobsahuju stack trace ani chybovu hlasku
   - v repe nie su ziadne prihlasovacie udaje
   - nie je zapnuty ziadny plugin ani marketplace
 """
@@ -58,6 +59,27 @@ def kontrola() -> list[str]:
                 if re.search(vzor, text):
                     chyby.append(f"{rel}: vyzera to ako {popis}")
 
+    # Zachytene vystupy v dokumentacii musia byt z uspesnych behov.
+    # Bez tejto kontroly sa do repa raz dostal stack trace z prikazu, ktory
+    # medzitym prestal fungovat - a v README pritom stalo, ze vsetko preslo.
+    ZNAKY_CHYBY = [
+        "Traceback (most recent call last)",
+        "ExceptionGroup:",
+        "KeyError:",
+        "AttributeError:",
+        "ModuleNotFoundError:",
+        "failed, ",
+        "error in ",
+    ]
+    for doc in sorted((KOREN / "docs").rglob("*.md")):
+        text = doc.read_text(encoding="utf-8", errors="replace")
+        for znak in ZNAKY_CHYBY:
+            if znak in text:
+                chyby.append(
+                    f"{doc.relative_to(KOREN)}: obsahuje '{znak}' - zachyteny vystup "
+                    "pochadza zo zlyhaneho behu, vygeneruj ho znova"
+                )
+
     # skills
     skills = sorted((KOREN / ".claude/skills").iterdir())
     for s in skills:
@@ -80,6 +102,18 @@ def kontrola() -> list[str]:
         for odkaz in re.findall(r"\]\((references/[^)]+|scripts/[^)]+)\)", t):
             if not (s / odkaz).exists():
                 chyby.append(f"{s.name}/SKILL.md: odkaz na neexistujuci {odkaz}")
+
+    # Relativne odkazy vo vsetkej dokumentacii. Rozbity odkaz v README je
+    # prva vec, na ktoru narazi niekto, kto repo vidi prvykrat.
+    for doc in sorted(KOREN.rglob("*.md")):
+        if PRESKOCIT & set(doc.parts):
+            continue
+        obsah = doc.read_text(encoding="utf-8", errors="replace")
+        for _, ciel in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", obsah):
+            if ciel.startswith(("http://", "https://", "#", "mailto:")):
+                continue
+            if not (doc.parent / ciel.split("#")[0]).exists():
+                chyby.append(f"{doc.relative_to(KOREN)}: rozbity odkaz na {ciel}")
 
     # subagenti
     agenti = sorted((KOREN / ".claude/agents").glob("*.md"))

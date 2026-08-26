@@ -39,8 +39,10 @@ async def main() -> int:
             print(f"\nserver_status -> rezim={stav['rezim']}, zapis={stav['zapis_povoleny']}")
 
             audit = json.loads((await session.call_tool("audit_seo", {})).content[0].text)
-            print(f"audit_seo     -> skontrolovanych {audit['skontrolovanych']}, "
-                  f"s problemom {audit['s_problemom']}")
+            print(f"audit_seo     -> produktov {audit['skontrolovanych_produktov']}, "
+                  f"obrazkov {audit['obrazkov_spolu']}, "
+                  f"z toho bez alt textu {audit['obrazkov_bez_alt_textu']}")
+            print(f"                 s problemom {audit['s_problemom']} produktov")
             for nalez in audit["nalezy"]:
                 print(f"   - {nalez['sku']:12} {len(nalez['problemy'])} problem(ov)")
 

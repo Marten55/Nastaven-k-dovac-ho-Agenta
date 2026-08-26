@@ -8,7 +8,8 @@ Prostredie: Windows 11 · Python 3.12.13 · uv 0.11.33 · Node 25.9.0 · MCP SDK
 ## 1. Validácia celého repa
 
 Kontroluje JSON, BOM, frontmatter skillov a subagentov, rozbité odkazy na
-referencie, prítomnosť prihlasovacích údajov a to, že nie je zapnutý žiadny plugin.
+referencie, prihlasovacie údaje, zapnuté pluginy a to, že zachytené výstupy
+v tomto súbore nepochádzajú zo zlyhaného behu.
 
 ```
 $ python overit.py
@@ -20,7 +21,7 @@ bez nalezov - setup je v poriadku
 
 ```
 $ cd mcp-servers/woo-mcp && uv run python -m pytest tests/ -q
-============================= 32 passed in 0.81s ==============================
+============================= 32 passed in 0.86s ==============================
 ```
 
 Dva súbory. `test_server.py` beží v režime `fixtures`, `test_store_mode.py` má
@@ -54,50 +55,16 @@ nastroje (7):
   [W] update_product   Uprav produkt. Mimo rezimu live vrati IBA nahlad zmeny.
 
 server_status -> rezim=fixtures, zapis=False
-  + Exception Group Traceback (most recent call last):
-  |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\smoke_stdio.py", line 58, in <module>
-  |     raise SystemExit(asyncio.run(main()))
-  |                      ^^^^^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195, in run
-  |     return runner.run(main)
-  |            ^^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
-  |     return self._loop.run_until_complete(task)
-  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 691, in run_until_complete
-  |     return future.result()
-  |            ^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\smoke_stdio.py", line 26, in main
-  |     async with stdio_client(parametre) as (citaj, zapis):
-  |                ^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 231, in __aexit__
-  |     await self.gen.athrow(value)
-  |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\.venv\Lib\site-packages\mcp\client\stdio.py", line 200, in stdio_client
-  |     async with anyio.create_task_group() as tg:
-  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
-  |     raise BaseExceptionGroup(
-  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
-  +-+---------------- 1 ----------------
-    | Exception Group Traceback (most recent call last):
-    |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\.venv\Lib\site-packages\mcp\client\stdio.py", line 204, in stdio_client
-    |     yield read_stream, write_stream
-    |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\smoke_stdio.py", line 27, in main
-    |     async with ClientSession(citaj, zapis) as session:
-    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\.venv\Lib\site-packages\mcp\client\session.py", line 521, in __aexit__
-    |     result = await self._task_group.__aexit__(exc_type, exc_val, exc_tb)
-    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in __aexit__
-    |     raise BaseExceptionGroup(
-    | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
-    +-+---------------- 1 ----------------
-      | Traceback (most recent call last):
-      |   File "C:\Users\marte\Desktop\adm-agent-setup\mcp-servers\woo-mcp\smoke_stdio.py", line 42, in main
-      |     print(f"audit_seo     -> skontrolovanych {audit['skontrolovanych']}, "
-      |                                               ~~~~~^^^^^^^^^^^^^^^^^^^
-      | KeyError: 'skontrolovanych'
-      +------------------------------------
+audit_seo     -> produktov 6, obrazkov 8, z toho bez alt textu 3
+                 s problemom 4 produktov
+   - XB47-0012    2 problem(ov)
+   - FLT-2200     2 problem(ov)
+   - HELM-0104    1 problem(ov)
+   - OLEJ         1 problem(ov)
+
+update_product -> vykonane=False (spravne False, lebo rezim je fixtures)
+
+VSETKO OK
 ```
 
 ## 4. Hook, ktorý blokuje zápis do cudzieho kódu
@@ -149,7 +116,7 @@ Chybne riadky oprav v CSV a spusti znova. Nic sa nezapisalo.
 Režim `store` bol otestovaný aj proti živému WooCommerce e-shopu s katalógom
 127 produktov. Výstup z toho behu tu **zámerne nie je** — obsahuje doménu
 klienta a `CLAUDE.md` tohto projektu zakazuje reálne klientske domény
-v dokumentácii. Rovnaké pravidlo vynucuje aj `overit.py`.
+v dokumentácii.
 
 Čo ten beh ukázal, v číslach bez identifikácie e-shopu:
 
