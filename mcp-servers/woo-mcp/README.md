@@ -77,6 +77,16 @@ prepnutí farby, takže audit, ktorý pozerá len na rodičovský produkt, ju ni
 Na reálnom katalógu so 127 produktmi to znamenalo rozdiel medzi 1 958 a 2 060
 kontrolovanými obrázkami.
 
+Vo `wc/v3` je variant **podzdroj rodiča** — `products/<id rodiča>/variations/<id>`.
+Plochá cesta `products/<id variantu>` nie je pre variant dokumentovaná, takže sa
+na ňu server nespolieha. Store API varianty samostatne nevystavuje a vracia ich
+na ceste produktu, preto sa v tom režime číta inak.
+
+Keď sa variant načítať nepodarí — alebo keď ich má produkt viac ako 20 — nález sa
+zapíše k produktu a celý audit dostane pole `upozornenie`. Ticho vynechaný variant
+je horší než hlasná chyba: počet obrázkov by bol nižší než skutočnosť a audit by sa
+pritom tváril úplne.
+
 ## Spustenie
 
 ```bash
@@ -99,7 +109,7 @@ Z koreňa repa ho spúšťa `.mcp.json`:
 uv run python -m pytest tests/ -v
 ```
 
-44 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
+48 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
 `test_store_mode.py` má zamockované HTTP — ani jeden nepotrebuje e-shop ani sieť.
 Pokrývajú okrem iného stránkovanie nad 100 položiek, normalizáciu tvaru zo Store API,
 načítanie fotiek variantov, to, že `store` sa nikdy nezavolá s prihlasovacími údajmi,

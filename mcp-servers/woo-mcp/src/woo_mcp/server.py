@@ -195,6 +195,7 @@ def audit_seo(limit: int = 200, zahrn_varianty: bool = True) -> dict[str, Any]:
     obrazkov_spolu = 0
     obrazkov_bez_altu = 0
     variantov_skontrolovanych = 0
+    produktov_s_neuplnymi_variantmi = 0
 
     for p in data:
         problemy = []
@@ -202,12 +203,18 @@ def audit_seo(limit: int = 200, zahrn_varianty: bool = True) -> dict[str, Any]:
 
         if zahrn_varianty and p.get("type") == "variable":
             try:
-                for v in k.varianty(p):
+                nacitane, problemy_variantov = k.varianty(p)
+            except WooChyba as chyba:
+                problemy.append(f"varianty sa nepodarilo nacitat ({chyba}) - "
+                                "skontrolovany iba rodicovsky produkt")
+                produktov_s_neuplnymi_variantmi += 1
+            else:
+                for v in nacitane:
                     variantov_skontrolovanych += 1
                     obrazky.extend(v.get("images", []))
-            except WooChyba:
-                problemy.append("varianty sa nepodarilo nacitat - skontrolovany "
-                                "iba rodicovsky produkt")
+                if problemy_variantov:
+                    problemy.extend(problemy_variantov)
+                    produktov_s_neuplnymi_variantmi += 1
 
         obrazkov_spolu += len(obrazky)
         bez_altu = [o for o in obrazky if not (o.get("alt") or "").strip()]
@@ -251,10 +258,21 @@ def audit_seo(limit: int = 200, zahrn_varianty: bool = True) -> dict[str, Any]:
         "s_problemom": len(nalezy),
         "nalezy": nalezy,
     }
+    upozornenia: list[str] = []
     if neuplne:
-        vysledok["upozornenie"] = (
+        upozornenia.append(
             "Audit je orezany poistkou strankovania - nepresiel cely katalog."
         )
+    if produktov_s_neuplnymi_variantmi:
+        # Nizsi pocet obrazkov, nez je skutocnost, je horsi nez hlasna chyba -
+        # audit by inak vyzeral uplne a hlasil menej nalezov, nez ich je.
+        upozornenia.append(
+            f"Pri {produktov_s_neuplnymi_variantmi} produktoch sa nepodarilo "
+            "nacitat vsetky varianty - pocet obrazkov je nizsi, nez je "
+            "skutocnost. Podrobnosti su v poli 'problemy' u konkretnych produktov."
+        )
+    if upozornenia:
+        vysledok["upozornenie"] = " ".join(upozornenia)
     if not zahrn_varianty:
         vysledok["nekontrolovane"] = "fotky variantov (zahrn_varianty=False)"
     return vysledok

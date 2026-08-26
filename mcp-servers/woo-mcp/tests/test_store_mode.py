@@ -8,7 +8,7 @@ import os
 import httpx
 import pytest
 
-from woo_mcp.client import MAX_PER_PAGE, WooChyba, WooClient
+from woo_mcp.client import MAX_PER_PAGE, MAX_VARIANTOV, WooChyba, WooClient
 
 
 # --- pomocky ------------------------------------------------------------
@@ -37,6 +37,31 @@ def store_produkt(pid, nazov="Test", sku="T-1", obrazky=None, typ="simple",
         "prices": {"price": "89999", "currency_minor_unit": 2},
         "is_in_stock": True,
         "on_backorder": False,
+        "categories": [{"id": 1, "name": "Stvorkolky"}],
+        "images": obrazky if obrazky is not None else [
+            {"id": 900 + pid, "src": "https://x/a.jpg", "alt": ""}
+        ],
+        "variations": varianty or [],
+    }
+
+
+def v3_produkt(pid, nazov="Test", sku="T-1", obrazky=None, typ="simple",
+               varianty=None):
+    """Tvar, aky vracia wc/v3.
+
+    Rozdiel oproti Store API: `variations` je zoznam ID, nie objektov,
+    a ceny su uz v korunach.
+    """
+    return {
+        "id": pid,
+        "name": nazov,
+        "sku": sku,
+        "type": typ,
+        "short_description": "<p>Popis.</p>",
+        "description": "<p>Dlhy popis.</p>",
+        "price": "899.99",
+        "stock_status": "instock",
+        "stock_quantity": 3,
         "categories": [{"id": 1, "name": "Stvorkolky"}],
         "images": obrazky if obrazky is not None else [
             {"id": 900 + pid, "src": "https://x/a.jpg", "alt": ""}
@@ -194,9 +219,10 @@ def test_varianty_sa_nacitaju_s_vlastnymi_obrazkami(store_klient, monkeypatch):
 
     monkeypatch.setattr(httpx, "get", falosny_get)
     produkty, _ = store_klient.produkty("", 5)
-    varianty = store_klient.varianty(produkty[0])
+    varianty, problemy = store_klient.varianty(produkty[0])
 
     assert len(varianty) == 2
+    assert problemy == [], "nic nezlyhalo, nema sa co hlasit"
     assert varianty[0]["images"][0]["alt"] == ""
     assert varianty[1]["images"][0]["alt"] == "Modra varianta"
 
@@ -204,7 +230,99 @@ def test_varianty_sa_nacitaju_s_vlastnymi_obrazkami(store_klient, monkeypatch):
 def test_jednoduchy_produkt_nema_varianty(store_klient, monkeypatch):
     monkeypatch.setattr(httpx, "get", lambda url, **kw: FalosnaOdpoved([store_produkt(1)]))
     produkty, _ = store_klient.produkty("", 5)
-    assert store_klient.varianty(produkty[0]) == []
+    assert store_klient.varianty(produkty[0]) == ([], [])
+
+
+def test_v3_cita_variant_ako_podzdroj_rodica(live_klient, monkeypatch):
+    """Vo wc/v3 je variant podzdroj rodica, nie samostatny produkt.
+
+    Plocha cesta products/<id varianty> nie je pre variant dokumentovana.
+    """
+    rodic = v3_produkt(4016, typ="variable", varianty=[4025])
+    volane = []
+
+    def falosny_get(url, params=None, **kw):
+        volane.append(url)
+        if "/variations/" in url:
+            return FalosnaOdpoved(v3_produkt(4025))
+        return FalosnaOdpoved(rodic)
+
+    monkeypatch.setattr(httpx, "get", falosny_get)
+    varianty, problemy = live_klient.varianty(rodic)
+
+    assert len(varianty) == 1
+    assert problemy == []
+    assert any(u.endswith("/products/4016/variations/4025") for u in volane), \
+        f"ocakavana cesta podzdroja, volane bolo: {volane}"
+
+
+def test_zlyhany_variant_sa_nahlasi(live_klient, monkeypatch):
+    """Ticho vynechany variant je horsi nez hlasna chyba - audit by hlasil
+    menej obrazkov, nez ich je, a tvaril by sa uplne."""
+    rodic = v3_produkt(4016, typ="variable", varianty=[4025, 4026])
+
+    def falosny_get(url, params=None, **kw):
+        if url.endswith("/variations/4025"):
+            return FalosnaOdpoved(v3_produkt(4025))
+        if url.endswith("/variations/4026"):
+            return FalosnaOdpoved({"message": "invalid id"}, status=404)
+        return FalosnaOdpoved(rodic)
+
+    monkeypatch.setattr(httpx, "get", falosny_get)
+    varianty, problemy = live_klient.varianty(rodic)
+
+    assert len(varianty) == 1, "jeden variant sa nacital"
+    assert len(problemy) == 1, "ten druhy sa musi nahlasit, nie prehltnut"
+    assert "4026" in problemy[0]
+
+
+def test_orezanie_poctu_variantov_sa_nahlasi(live_klient, monkeypatch):
+    """Produkt s 30 variantmi sa skontroluje z dvoch tretin - a povie to."""
+    rodic = v3_produkt(4016, typ="variable",
+                       varianty=[5000 + i for i in range(30)])
+
+    def falosny_get(url, params=None, **kw):
+        if "/variations/" in url:
+            return FalosnaOdpoved(v3_produkt(int(url.rsplit("/", 1)[1])))
+        return FalosnaOdpoved(rodic)
+
+    monkeypatch.setattr(httpx, "get", falosny_get)
+    varianty, problemy = live_klient.varianty(rodic)
+
+    assert len(varianty) == MAX_VARIANTOV
+    assert any("30 variantov" in p for p in problemy), \
+        "orezanie sa nesmie zamlcat"
+
+
+async def test_audit_prizna_nedostupne_varianty(monkeypatch):
+    """Nedostupny variant sa musi objavit v upozorneni celeho auditu."""
+    import woo_mcp.server as srv
+
+    monkeypatch.setenv("WOO_MODE", "dry-run")
+    monkeypatch.setenv("WOO_BASE_URL", "https://example-shop.sk")
+    monkeypatch.setenv("WOO_CONSUMER_KEY", "ck_test")
+    monkeypatch.setenv("WOO_CONSUMER_SECRET", "cs_test")
+    monkeypatch.setattr(srv, "_klient", None)
+
+    rodic = v3_produkt(4016, typ="variable", varianty=[4025],
+                       obrazky=[{"id": 1, "src": "x", "alt": "Rodic"}])
+
+    def falosny_get(url, params=None, **kw):
+        if "/variations/" in url:
+            return FalosnaOdpoved({"message": "invalid id"}, status=404)
+        return FalosnaOdpoved([rodic])
+
+    monkeypatch.setattr(httpx, "get", falosny_get)
+
+    vysledok = await srv.mcp.call_tool("audit_seo", {"limit": 10})
+    data = json.loads(vysledok.content[0].text)
+
+    assert "upozornenie" in data, "audit sa nesmie tvarit uplne"
+    assert "nizsi" in data["upozornenie"]
+    assert data["skontrolovanych_variantov"] == 0
+    # Nedostupny variant musi byt aj u konkretneho produktu, nie len v suhrne.
+    assert any("4025" in " ".join(n["problemy"]) for n in data["nalezy"])
+    monkeypatch.setattr(srv, "_klient", None)
 
 
 # --- audit cez MCP rozhranie -------------------------------------------

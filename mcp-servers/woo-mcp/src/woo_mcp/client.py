@@ -29,6 +29,8 @@ PLATNE_REZIMY = ("fixtures", "store", "dry-run", "live")
 MAX_PER_PAGE = 100
 # Poistka proti nekonecnemu strankovaniu pri chybnej odpovedi servera.
 MAX_STRAN = 20
+# Kolko variantov jedneho produktu sa nacita. Orezanie sa vzdy hlasi volajucemu.
+MAX_VARIANTOV = 20
 
 
 class WooChyba(RuntimeError):
@@ -54,7 +56,7 @@ class WooClient:
         if self.mode in ("dry-run", "live") and not (self.base_url and self.key and self.secret):
             raise WooChyba(
                 f"Rezim '{self.mode}' potrebuje WOO_BASE_URL, WOO_CONSUMER_KEY a "
-                "WOO_CONSUMER_SECRET. Skopiruj .env.example na .env a doplo ich, "
+                "WOO_CONSUMER_SECRET. Skopiruj .env.example na .env a dopln ich, "
                 "alebo pouzi WOO_MODE=store (iba citanie, bez klucov)."
             )
 
@@ -225,20 +227,58 @@ class WooClient:
                 return p
         return None
 
-    def varianty(self, produkt: dict[str, Any]) -> list[dict[str, Any]]:
+    def _variant(self, rodic_id: Any, vid: Any) -> dict[str, Any] | None:
+        """Nacita jeden variant. None znamena, ze sa ho nepodarilo ziskat."""
+        if self.mode == "fixtures":
+            return self.produkt(str(vid))
+        try:
+            if self.mode == "store":
+                # Store API varianty ako samostatny zdroj nema, vracia ich
+                # na ceste produktu.
+                return self._normalizuj(self._store(f"products/{vid}"))
+            # wc/v3 ma variant ako podzdroj rodica. Plocha cesta products/<id>
+            # nie je pre variant dokumentovana - nespoliehaj sa na nu.
+            return self._zo_v3(self._v3(f"products/{rodic_id}/variations/{vid}"))
+        except WooChyba:
+            return None
+
+    def varianty(self, produkt: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
         """Nacita varianty variabilneho produktu aj s ich vlastnymi obrazkami.
 
         Variant ma vlastnu fotku, ktora sa zobrazi po prepnuti farby. Audit,
         ktory pozera len na rodicovsky produkt, tieto fotky nikdy neuvidi.
+
+        Vracia (varianty, problemy). `problemy` je zoznam viet o tom, co sa
+        NEPODARILO nacitat - prazdny zoznam znamena, ze je vsetko. Ticho
+        vynechany variant je horsi nez hlasna chyba: audit by nahlasil menej
+        obrazkov, nez ich naozaj je, a tvaril by sa uplne.
         """
         if produkt.get("type") != "variable":
-            return []
-        vysledok = []
-        for vid in produkt.get("variations", [])[:20]:
-            v = self.produkt(str(vid))
-            if v:
-                vysledok.append(v)
-        return vysledok
+            return [], []
+
+        vsetky = produkt.get("variations", [])
+        problemy: list[str] = []
+        if len(vsetky) > MAX_VARIANTOV:
+            problemy.append(
+                f"produkt ma {len(vsetky)} variantov, nacitalo sa prvych "
+                f"{MAX_VARIANTOV} - fotky zvysnych nie su zapocitane"
+            )
+
+        vysledok: list[dict[str, Any]] = []
+        zlyhane: list[str] = []
+        for vid in vsetky[:MAX_VARIANTOV]:
+            variant = self._variant(produkt.get("id"), vid)
+            if variant is None:
+                zlyhane.append(str(vid))
+            else:
+                vysledok.append(variant)
+
+        if zlyhane:
+            problemy.append(
+                f"varianty {', '.join(zlyhane)} sa nepodarilo nacitat - "
+                "ich fotky nie su zapocitane"
+            )
+        return vysledok, problemy
 
     def objednavky(self, stav: str = "any", limit: int = 20) -> list[dict[str, Any]]:
         if self.mode == "fixtures":

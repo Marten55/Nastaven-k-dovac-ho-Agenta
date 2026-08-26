@@ -25,8 +25,8 @@ bez nalezov - setup je v poriadku
 
 ```
 $ cd mcp-servers/woo-mcp && uv run python -m pytest tests/ -q
-............................................                             [100%]
-44 passed in 0.96s
+................................................                         [100%]
+48 passed in 1.20s
 ```
 
 Dva súbory. `test_server.py` beží v režime `fixtures`, `test_store_mode.py` má
@@ -44,6 +44,9 @@ zamockované HTTP. Ani jeden nepotrebuje e-shop ani sieť. Pokrývajú okrem in�
 - že `set_alt_text` neodošle PUT, keď sa alt text nelíši od súčasného
 - že `set_alt_text` odmietne ID obrázka, ktorý k produktu nepatrí
 - že oba zápisové nástroje zlyhajú zrozumiteľne pri neexistujúcom produkte
+- že sa variant vo `wc/v3` číta ako podzdroj rodiča, nie plochou cestou
+- že nedostupný variant a strop 20 variantov skončia v poli `upozornenie`,
+  namiesto aby audit ticho hlásil menej obrázkov
 
 ## 3. MCP server naživo cez stdio
 

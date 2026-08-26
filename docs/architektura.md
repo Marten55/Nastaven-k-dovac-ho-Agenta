@@ -31,7 +31,8 @@ flowchart TB
 
     M1 --> R{{"WOO_MODE"}}
     R -->|fixtures| F[("fixtures/*.json")]
-    R -->|"dry-run / live"| W[("WooCommerce REST")]
+    R -->|store| S[("Store API<br/>verejné, iba čítanie")]
+    R -->|"dry-run / live"| W[("WooCommerce REST<br/>wc/v3, s kľúčmi")]
 
     HK1["PreToolUse hook<br/>guard_wp_core.py"] -.->|blokuje zápis<br/>do cudzieho kódu| HL
     HK2["SessionStart hook<br/>session_context.py"] -.->|vpichne režim<br/>a stav projektu| HL

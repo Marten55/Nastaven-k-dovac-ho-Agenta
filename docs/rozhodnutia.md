@@ -129,7 +129,29 @@ pribudol do servera. Ani jedna z nich nepadala — obe len ticho nefungovali.
 
 **Cena:** jeden workflow navyše a nutnosť držať README v súlade s tým, čo CI beží.
 
-## 11. Čo sa do setupu zámerne nedostalo
+## 11. Varianty sa čítajú ako podzdroj a zlyhanie sa hlási
+
+**Rozhodnutie:** vo `wc/v3` čítať variant cez `products/<rodič>/variations/<id>`
+a neúspech nahlásiť volajúcemu namiesto prehltnutia.
+
+**Prečo:** pôvodne sa variant načítaval plochou cestou `products/<id variantu>`,
+ktorá pre variant nie je dokumentovaná. Horšie než samotné zlyhanie bolo, že bolo
+tiché — `produkt()` chytí `WooChyba` a vráti `None`, takže sa variant jednoducho
+preskočil. Poistka v `audit_seo` sa nespustila a audit nahlásil menej obrázkov,
+než ich je, pričom vyzeral úplne. To je presne trieda chyby z bodu 8.
+
+Rovnako bol tichý strop 20 variantov na produkt. Produkt s 30 variantmi sa
+skontroloval z dvoch tretín a vo výsledku o tom nebolo ani slovo.
+
+**Dôsledok:** `varianty()` vracia dvojicu `(varianty, problémy)`. Prázdny zoznam
+problémov znamená, že sa načítalo všetko; čokoľvek iné sa premietne do poľa
+`upozornenie` celého auditu aj k nálezom konkrétneho produktu.
+
+**Čo overené nie je:** že plochá cesta na reálnom WooCommerce naozaj vracia chybu.
+Testy sú mockované. Dokumentovaná cesta je však tá cez podzdroj, takže sa používa
+bez ohľadu na to, ako sa plochá zachová.
+
+## 12. Čo sa do setupu zámerne nedostalo
 
 | Vec | Prečo nie |
 |---|---|
