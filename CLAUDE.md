@@ -29,9 +29,14 @@ klientov. Tento súbor je nadradený default správaniu agenta.
 
 ## MCP server `woo`
 
-- Beží v troch režimoch: `fixtures` (offline, default), `dry-run` (číta naživo, zapisuje
-  naprázdno), `live` (plný zápis). Režim čítaj z odpovede nástroja, nepredpokladaj ho.
+- Beží v štyroch režimoch: `fixtures` (offline, default), `store` (verejné Store API,
+  reálne dáta, iba čítanie, bez kľúčov), `dry-run` (wc/v3 naživo, zapisuje naprázdno),
+  `live` (plný zápis). Režim čítaj z odpovede nástroja, nepredpokladaj ho.
 - Ak je režim `fixtures`, čísla sú demo dáta — nikdy ich neprezentuj ako stav e-shopu.
+- Na audit cudzieho e-shopu siahni po `store` skôr než po kľúčoch. Nepotrebuje prístupy
+  a nemôže nič pokaziť.
+- `audit_seo` má `zahrn_varianty=True`. Nevypínaj to bez dôvodu — fotka varianty sa
+  zobrazí až po prepnutí farby a bez toho ju audit nikdy neuvidí.
 
 ## Bezpečnosť
 

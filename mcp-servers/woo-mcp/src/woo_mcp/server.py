@@ -1,7 +1,7 @@
 """MCP server nad WooCommerce REST API.
 
 Spustenie:  uv --directory mcp-servers/woo-mcp run woo-mcp
-Rezim riadi premenna WOO_MODE (fixtures | dry-run | live), default fixtures.
+Rezim riadi WOO_MODE (fixtures | store | dry-run | live), default fixtures.
 """
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ mcp = MCPServer(
     instructions=(
         "Nastroje nad WooCommerce e-shopom. Skor nez ukazes akekolvek cisla "
         "pouzivatelovi alebo nieco zmenis, zavolaj server_status a over rezim. "
-        "V rezime fixtures su data demo, nie stav realneho e-shopu."
+        "V rezime fixtures su data demo, nie stav realneho e-shopu. Rezim store "
+        "cita realne data verejne, bez klucov, a nic nezapise."
     ),
 )
 
@@ -69,11 +70,13 @@ def server_status() -> dict[str, Any]:
         "rezim": k.mode,
         "eshop": k.maskovana_domena(),
         "zapis_povoleny": k.zapis_povoleny,
+        "cita_naozivo": k.cita_naozivo,
         "vyznam": {
             "fixtures": "offline demo data, NIE su to realne cisla e-shopu",
-            "dry-run": "cita naozivo, zapisy len simuluje",
+            "store": "verejne Store API, realne data e-shopu, iba citanie bez klucov",
+            "dry-run": "wc/v3 naozivo, zapisy len simuluje",
             "live": "plny zapis do e-shopu",
-        }[k.mode],
+        }.get(k.mode, "neznamy rezim"),
     }
 
 
@@ -82,13 +85,22 @@ def search_products(hladaj: str = "", limit: int = 20) -> dict[str, Any]:
     """Najdi produkty podla nazvu alebo SKU. Vracia skrateny vypis.
 
     hladaj: cast nazvu alebo SKU, prazdne = prvych `limit` produktov
-    limit:  max pocet vysledkov (rozumne do 50)
+    limit:  max pocet vysledkov; nad 100 sa automaticky strankuje
     """
     try:
-        data = klient().produkty(hladaj, limit)
+        data, neuplne = klient().produkty(hladaj, limit)
     except WooChyba as chyba:
         return {"chyba": str(chyba)}
-    return {"pocet": len(data), "produkty": [_strucne(p) for p in data]}
+    vysledok: dict[str, Any] = {
+        "pocet": len(data),
+        "produkty": [_strucne(p) for p in data],
+    }
+    if neuplne:
+        vysledok["upozornenie"] = (
+            "Vysledok je orezany poistkou strankovania - nie je to cely katalog. "
+            "Neprezentuj ho ako uplny."
+        )
+    return vysledok
 
 
 @mcp.tool(annotations=IBA_CITANIE)
@@ -156,29 +168,60 @@ def list_orders(stav: str = "any", limit: int = 20) -> dict[str, Any]:
 RIZIKOVE_ZNAKY = "ŠČŤĎŇĽŔŽÝÁÍÉÚÔÄ"
 
 
+def _bez_html(text: str) -> str:
+    """Store API vracia popisy ako HTML. Prazdny odstavec nie je popis."""
+    return re.sub(r"<[^>]+>", "", text or "").replace("&nbsp;", " ").strip()
+
+
 @mcp.tool(annotations=IBA_CITANIE)
-def audit_seo(limit: int = 50) -> dict[str, Any]:
+def audit_seo(limit: int = 200, zahrn_varianty: bool = True) -> dict[str, Any]:
     """Najdi produkty s chybami, ktore skodia SEO a zobrazeniu.
 
     Kontroluje: chybajuci alt text obrazkov, chybajuci kratky popis,
     prilis dlhy nazov (nad 70 znakov) a rizikovu diakritiku v nazve.
+
+    limit: kolko produktov prejst; nad 100 sa automaticky strankuje
+    zahrn_varianty: pri variabilnych produktoch nacitat aj fotky jednotlivych
+        variantov. Fotka varianty sa zobrazi az po prepnuti farby, takze audit
+        bez tohto ju nikdy neuvidi. Stoji to jednu poziadavku na variant.
     """
     try:
-        data = klient().produkty("", limit)
+        k = klient()
+        data, neuplne = k.produkty("", limit)
     except WooChyba as chyba:
         return {"chyba": str(chyba)}
 
     nalezy: list[dict[str, Any]] = []
+    obrazkov_spolu = 0
+    obrazkov_bez_altu = 0
+    variantov_skontrolovanych = 0
+
     for p in data:
         problemy = []
-        bez_altu = [o for o in p.get("images", []) if not (o.get("alt") or "").strip()]
+        obrazky = list(p.get("images", []))
+
+        if zahrn_varianty and p.get("type") == "variable":
+            try:
+                for v in k.varianty(p):
+                    variantov_skontrolovanych += 1
+                    obrazky.extend(v.get("images", []))
+            except WooChyba:
+                problemy.append("varianty sa nepodarilo nacitat - skontrolovany "
+                                "iba rodicovsky produkt")
+
+        obrazkov_spolu += len(obrazky)
+        bez_altu = [o for o in obrazky if not (o.get("alt") or "").strip()]
+        obrazkov_bez_altu += len(bez_altu)
         if bez_altu:
-            problemy.append(f"{len(bez_altu)} obrazkov bez alt textu")
-        if not (p.get("short_description") or "").strip():
+            problemy.append(f"{len(bez_altu)} z {len(obrazky)} obrazkov bez alt textu")
+
+        if not _bez_html(p.get("short_description", "")):
             problemy.append("chyba kratky popis")
+
         nazov = p.get("name", "")
         if len(nazov) > 70:
             problemy.append(f"nazov ma {len(nazov)} znakov (nad 70 sa v Google oreze)")
+
         rizikove = sorted({z for z in nazov if z in RIZIKOVE_ZNAKY})
         if rizikove:
             problemy.append(
@@ -186,26 +229,42 @@ def audit_seo(limit: int = 50) -> dict[str, Any]:
                 + " - over, ci ich font na webe vykresluje (subset bez diakritiky "
                   "ich zobrazi ako prazdne miesto)"
             )
-        if not re.search(r"\d", p.get("sku", "")) and p.get("sku"):
+
+        if p.get("sku") and not re.search(r"\d", p.get("sku", "")):
             problemy.append("SKU bez cisla - over konvenciu")
+
         if problemy:
             nalezy.append({
                 "id": p.get("id"),
                 "sku": p.get("sku"),
                 "nazov": nazov,
+                "typ": p.get("type"),
                 "problemy": problemy,
             })
 
-    return {
-        "skontrolovanych": len(data),
+    vysledok: dict[str, Any] = {
+        "rezim": k.mode,
+        "skontrolovanych_produktov": len(data),
+        "skontrolovanych_variantov": variantov_skontrolovanych,
+        "obrazkov_spolu": obrazkov_spolu,
+        "obrazkov_bez_alt_textu": obrazkov_bez_altu,
         "s_problemom": len(nalezy),
         "nalezy": nalezy,
     }
+    if neuplne:
+        vysledok["upozornenie"] = (
+            "Audit je orezany poistkou strankovania - nepresiel cely katalog."
+        )
+    if not zahrn_varianty:
+        vysledok["nekontrolovane"] = "fotky variantov (zahrn_varianty=False)"
+    return vysledok
 
 
 @mcp.tool(annotations=ZAPIS)
 def update_product(product_id: int, zmeny: dict[str, Any]) -> dict[str, Any]:
-    """Uprav produkt. V rezime fixtures a dry-run vrati IBA nahlad zmeny.
+    """Uprav produkt. Mimo rezimu live vrati IBA nahlad zmeny.
+
+    V rezime store zlyha - Store API je iba na citanie.
 
     product_id: ciselne ID produktu
     zmeny: slovnik poli WooCommerce REST, napr.

@@ -16,14 +16,23 @@ Univerzálny HTTP MCP server by e-shop obslúžil tiež, ale za cenu kontextu a 
 
 Riadi ich premenná `WOO_MODE`, default je `fixtures`, teda najbezpečnejšia možnosť.
 
-| Režim | Čítanie | Zápis | Použitie |
-|---|---|---|---|
-| `fixtures` | z `fixtures/*.json` | vráti náhľad | demo, testy, vývoj bez e-shopu |
-| `dry-run` | naživo cez REST | vráti náhľad | príprava hromadnej zmeny na ostrých dátach |
-| `live` | naživo cez REST | zapíše | ostrá prevádzka |
+| Režim | Čítanie | Zápis | Kľúče | Použitie |
+|---|---|---|---|---|
+| `fixtures` | z `fixtures/*.json` | náhľad | nie | demo, testy, vývoj bez e-shopu |
+| `store` | verejné Store API | zamietne | **nie** | audit cudzieho e-shopu bez prístupov |
+| `dry-run` | wc/v3 naživo | náhľad | áno | príprava hromadnej zmeny na ostrých dátach |
+| `live` | wc/v3 naživo | zapíše | áno | ostrá prevádzka |
 
 Server sa v režime `dry-run` a `live` odmietne spustiť bez kompletných prihlasovacích
-údajov a povie, čo chýba.
+údajov a povie, čo chýba. Režimu `store` stačí `WOO_BASE_URL`.
+
+### Prečo režim `store`
+
+Audit e-shopu treba spraviť najčastejšie **skôr, než klient vygeneruje API kľúče** —
+pri obhliadke pred ponukou, pri prevzatí cudzieho webu, pri kontrole po zásahu.
+Store API je to isté rozhranie, z ktorého číta výkladná skriňa e-shopu: vráti názov,
+SKU, krátky popis, kategórie aj obrázky s alt textami. Zápis cezeň nejde, takže
+sa v tomto režime nedá nič pokaziť ani omylom.
 
 ## Nástroje
 
@@ -36,6 +45,19 @@ Server sa v režime `dry-run` a `live` odmietne spustiť bez kompletných prihla
 | `list_orders` | objednávky podľa stavu |
 | `audit_seo` | chýbajúce alt texty, krátke popisy, dlhé názvy, riziková diakritika |
 | `update_product` | úprava produktu, mimo `live` iba náhľad zmeny |
+
+### Stránkovanie a varianty
+
+WooCommerce vráti najviac **100 položiek** na požiadavku bez ohľadu na to, čo pošleš.
+`search_products` aj `audit_seo` preto stránkujú automaticky. Keby to nerobili, pri
+katalógu nad 100 produktov by audit ticho vynechal zvyšok a hlásil menej nálezov,
+než ich naozaj je. Keď sa narazí na poistku proti nekonečnému stránkovaniu, výsledok
+sa označí poľom `upozornenie` — orezaný výstup sa nikdy netvári ako úplný.
+
+`audit_seo` má `zahrn_varianty=True`. Fotka varianty sa na e-shope zobrazí až po
+prepnutí farby, takže audit, ktorý pozerá len na rodičovský produkt, ju nikdy neuvidí.
+Na reálnom katalógu so 127 produktmi to znamenalo rozdiel medzi 1 958 a 2 060
+kontrolovanými obrázkami.
 
 ## Spustenie
 
@@ -59,7 +81,10 @@ Z koreňa repa ho spúšťa `.mcp.json`:
 uv run python -m pytest tests/ -v
 ```
 
-Testy bežia v režime `fixtures`, takže nepotrebujú e-shop ani sieť.
+32 testov v dvoch súboroch. `test_server.py` beží v režime `fixtures`,
+`test_store_mode.py` má zamockované HTTP — ani jeden nepotrebuje e-shop ani sieť.
+Pokrývajú okrem iného stránkovanie nad 100 položiek, normalizáciu tvaru zo Store API,
+načítanie fotiek variantov a to, že `store` sa nikdy nezavolá s prihlasovacími údajmi.
 
 ## Prihlasovacie údaje
 

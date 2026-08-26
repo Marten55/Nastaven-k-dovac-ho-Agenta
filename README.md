@@ -64,17 +64,21 @@ Sedem nástrojov: `server_status`, `search_products`, `get_product`, `check_stoc
 `list_orders`, `audit_seo`, `update_product`.
 Dokumentácia: [mcp-servers/woo-mcp/README.md](mcp-servers/woo-mcp/README.md)
 
-Tri veci, ktoré ho odlišujú od generického HTTP MCP servera:
+Štyri veci, ktoré ho odlišujú od generického HTTP MCP servera:
 
 1. **Šetrí kontext.** WooCommerce vracia na produkt vyše 60 polí. `search_products`
    ich oreže na osem, zvyšok si agent vypýta cez `get_product` len pre produkt, ktorý
    ho naozaj zaujíma.
-2. **Zápis má tri režimy.** `fixtures` (offline), `dry-run` (číta naživo, zapisuje
+2. **Zápis má štyri režimy.** `fixtures` (offline), `store` (verejné Store API,
+   reálne dáta, iba čítanie **bez kľúčov**), `dry-run` (wc/v3 naživo, zapisuje
    naprázdno), `live`. Default je `fixtures`, takže server sa nedá spustiť omylom
    v zápisovom režime. Mimo `live` vráti `update_product` tabuľku predtým/potom.
 3. **Vie doménu.** `audit_seo` hľadá chýbajúce alt texty, krátke popisy, názvy nad
    70 znakov a rizikovú diakritiku — veľké Š, Č, Ť, Ž v názve, ktoré subset fontu
    bez slovenských mäkčeňov zobrazí ako prázdne miesto.
+4. **Nezamlčí, čo nevidel.** Stránkuje nad hranicou 100 položiek, ktorú WooCommerce
+   vnucuje, kontroluje aj fotky jednotlivých variantov a orezaný výsledok vždy označí
+   poľom `upozornenie`. Ticho neúplný audit je horší než žiadny.
 
 Nástroje sú označené `ToolAnnotations`, takže klient vie, ktoré sú bezpečné volať
 bez pýtania a ktoré menia dáta.
@@ -150,7 +154,7 @@ Všetko sa dá reprodukovať bez e-shopu a bez sieťového prístupu k WooCommer
 python overit.py                                    # celý setup
 python .claude/hooks/test_guard.py                  # hook, 10 prípadov
 cd mcp-servers/woo-mcp
-uv run python -m pytest tests/ -q                   # MCP server, 16 testov
+uv run python -m pytest tests/ -q                   # MCP server, 32 testov
 uv run python smoke_stdio.py                        # skutočný MCP handshake cez stdio
 ```
 
@@ -201,7 +205,7 @@ adm-agent-setup/
 ├── mcp-servers/woo-mcp/         vlastný MCP server
 │   ├── src/woo_mcp/             server.py, client.py
 │   ├── fixtures/                demo dáta
-│   ├── tests/                   16 testov
+│   ├── tests/                   32 testov
 │   └── smoke_stdio.py           overenie cez skutočný MCP protokol
 └── docs/
     ├── architektura.md          diagram a dôvody

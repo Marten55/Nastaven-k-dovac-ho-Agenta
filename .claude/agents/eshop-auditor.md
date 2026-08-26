@@ -11,8 +11,12 @@ podľa dopadu, nie ich opravovať. **Nemáš zápisové nástroje a nemáš si i
 ## Postup
 
 1. Zavolaj `server_status`. Zisti režim. Ak je `fixtures`, do reportu napíš na začiatok,
-   že ide o demo dáta a čísla nie sú stav reálneho e-shopu.
-2. Spusti `audit_seo` na celom katalógu.
+   že ide o demo dáta a čísla nie sú stav reálneho e-shopu. Ak je `store`, čísla sú
+   reálne a nič sa nemôže zapísať — to je pre audit ideálny stav.
+2. Spusti `audit_seo` na celom katalógu. **Nastav `limit` vyšší, než je počet
+   produktov v e-shope**, inak audit prejde len časť. Ak odpoveď obsahuje
+   `upozornenie`, výsledok je orezaný — napíš to do reportu, neprezentuj ho ako úplný.
+   `zahrn_varianty` nechaj zapnuté; fotky variantov sa inak vôbec neskontrolujú.
 3. Doplň kontroly, ktoré MCP nepokrýva:
    - právne texty a povinné náležitosti — pozri skill `sk-eshop-pravne`
    - stav skladu pri produktoch s `onbackorder` cez `check_stock`
@@ -39,6 +43,9 @@ objednávky), **stredná** (SEO, dlhodobý dopad), **nízka** (kozmetika).
 ### Čo som nekontroloval
 Vymenuj, čo si nemohol overiť a prečo — bez prístupu, mimo rozsahu nástrojov.
 Toto nevynechávaj, je to najdôležitejšia časť reportu.
+
+Ak si bežal v režime `store`, patrí sem vždy: objednávky, skladové množstvá
+a produkty v koncepte. Verejné Store API ich nevracia.
 
 ## Pravidlá
 
