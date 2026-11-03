@@ -1,5 +1,17 @@
 # ADM Agent Setup
 
+[![CI](https://github.com/Marten55/adm-agent-setup/actions/workflows/ci.yml/badge.svg)](https://github.com/Marten55/adm-agent-setup/actions/workflows/ci.yml)
+
+**Problém:** AI agent, ktorý pracuje na živom e-shope klienta, môže prepísať jadro
+WordPressu alebo cudzí plugin, zmeniť ostré produkty v obchode alebo napísať texty,
+ktoré nesedia so slovenskými pravidlami pre e-shopy. Pokyn v prompte to nezaručí.
+
+**Riešenie:** nastavenie Claude Code, v ktorom najdôležitejšie pravidlá stráži kód,
+nielen inštrukcia. Hook zablokuje zápis do jadra WordPressu a cudzích pluginov, MCP
+server sa predvolene spúšťa nad demo dátami a každú zmenu produktu v obchode musí
+potvrdiť človek. Doménové znalosti (Elementor, WooCommerce, slovenské pravidlá pre
+e-shopy) nesú skilly.
+
 Konfigurácia kódovacieho agenta (Claude Code) pre prácu na WooCommerce e-shopoch
 slovenských klientov. Vlastný MCP server, päť doménových skillov, štyria subagenti
 s obmedzenými právami a dva hooky, ktoré vynucujú pravidlá, na ktoré inštrukcia
