@@ -1,0 +1,34 @@
+# Kontrola setupu pri každom PR a pushi do main.
+#
+# Tri kroky, rovnaké ako lokálne:
+#   1. overit.py      — konfigurácia, odkazy v dokumentácii, žiadne tajomstvá
+#   2. test_guard.py  — hook, ktorý bráni zápisu do jadra WordPressu
+#   3. pytest         — MCP server nad WooCommerce (beží na demo dátach, bez e-shopu)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Kontrola setupu
+        run: python overit.py
+
+      - name: Test hooku
+        run: python .claude/hooks/test_guard.py
+
+      - name: Testy MCP servera
+        working-directory: mcp-servers/woo-mcp
+        run: |
+          uv sync --frozen
+          uv run pytest -q
